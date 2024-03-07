@@ -1,4 +1,16 @@
 # Updating
+## Release notes for version 2.0.0
+* We have  improved the skull stripping and cerebellum removal model to make the toolkit more reliable.
+* We have fixed the boundary issues. Previously, when the brains are too close to the boundary, the segmentation may generate inaccurate results. Now, the issue has been addressed.
+* We have made the system work more robust. When potential error occurs, the pipeline will stop and output more meaningful logs for easy problem location.
+* We updated the commandline parameters to make it more consistent with human instinct. Please refer to section **Running the pepeline container** for more details.
+* The latest version can be acquired by: `docker pull ibeatgroup/ibeat_v2:release200`.
+
+## Release notes for version 1.2.0
+* We have fixed the issue that the pipeline fails to run on newer gpus. The latest version can be acquired by: `docker pull ibeatgroup/ibeat_v2:release120`.
+* Using Cuda 11+cudnn 8 will increase the GPU memory needs. On our local testing, we noticed that the needed minimal GPU memory is around 5GB.
+
+
 ## Improvement in Version 1.1.0
 * The cerebellum removal modal was improved.
 * Enable user to provide customized brain mask and/or cerebrum mask for the pipleine. See more details in [run the pipeline section](#run-the-pipeline).
@@ -64,7 +76,7 @@ The container is totally free. Please first register on the [iBEAT V2.0 Cloud](h
 ## Run the pipeline
 Before running the pipeline, please:
 * Create a directory (let's say **`your_data_folder`**), which will be mounted to the container. The container will load the data for processing from this directory and also save the processed results to this directory. 
-* Put the license file (please do not rename/modify the license file) into the created folder.
+* Put the "License" file (please do not rename/modify the license file, no extension) into the created folder.
 
 After that, you can run the pipeline with the following example code:
 ```
@@ -78,18 +90,33 @@ In the above example, you can regard `docker run --gpus --rm -it -v /your_data_f
 - `ibeatgroup/ibeat_v2:release100` is the container name of the pipeline.
 
 The **important parameters** are: 
-* `--t1` or `--t2`: the path of the T1w or T2w infant brain image (relative to **`your_data_folder`**, which is the data folder you plan to mount into the container. They should be in NIfTI format (.nii). If you only have one modality, just input the available modaility (T1w or T2w).
+* `--t1` or `--t2`: the path of the T1w or T2w infant brain image (relative to **`your_data_folder`**), which is the data folder you plan to mount into the container. They should be in NIfTI format (.nii). If you only have one modality, just input the available modaility (T1w or T2w).
 * `--age[a]`: the infant age at scan (in MONTH).
 * `--out_dir[d]`: the folder where to save the results. If empty, it will be created. Of note, this folder is rooted based on the inputed data folder (*your_data_folder* in the above example).
 * `--sub_name[n]`: the subject name for the current processing subject. If you don’t assign, the pipeline will refer based on your T1 and T2 image names.
-* `--skip_surface`: whether to skip the cortical surface reconstruction procedure.
-You can get detailed parameter information and simple example command by just running the pipeline without any parameters. 
+You can get detailed parameter information and simple example command by just running the pipeline without any parameters.
 
 The **user interventioned parameters** are:
-* `--skull_mask`: the path of the user provided brain mask. If there is only one modality (either `--t1` or `--t2` is used), this would be the brain mask for that modality. If there are two modalities inputed (both `--t1` and `--t2` are used), this would be the brain mask for the t1w modality. In this case, if you also want to provide a brain mask for t2 modality, please use additional parameter `--exmod_skull_mask` (see below).
-* `--exmod_skull_mask`: the path of the user provided brain mask for t2w image when both t1w and t2w images are inputed.
-* `--cere_mask`: the path of the user provided cerebrum mask. If there is only one modality, this would be the cerebrum mask for that modality. If there are two modalities inputed, this would be the cerebrum mask for the t1w modality. Since at the cerebellum removal stage, the t2w image has been aligned with the t1w image. So, the t2w cerebrum mask is no longer needed.
+* `--skull_type`: how to do the skullstripping. `0`: skip. `1`: use our model. `2`: provide the mask. The mask file is provided by the following 2 parameters. (optional, default: `1`)
+* `--t1_skull_mask`: skull mask for T1. (optional, only meaningful when skull_type is set to `2`)
+* `--t2_skull_mask`: skull mask for T2. (optional, only meaningful when skull_type is set to `2`)
+* `--cere_type`: how to do the cerebellum removal. `0`: skip. `1`: use our model. `2`: provide the mask. The mask file is provided by the cere_mask parameter. (optional, default: `1`)
+* `--cere_mask`: cerebrum mask file. (optional, only meaningful when cere_type is set to `2`)
+* `--tissue_type`: how to do the tissue segmentation. `0`: skip. `1`: use our model.  If `0`, the pipeline will only do the surface reconstruction with the input tissue specified by tissue_in parameter. (optional, default: `1`)
+* `--tissue_in`: the provided tissue map. (optional, only meaningful when cere_type is set to `0`)
+* `--skip_surface`: whether need to do the surface reconstruction. `0`: skip. `1`: do the reconstruction. (optional, default: `1`)
+* `--skull_prob_thresh`: The threshold for binarizing the skull stripping probability map. You can set this value between 0 and 1 to adjust the skull stripping mask. (optional, default: 0.5).
+* `--cerebrum_prob_thresh`: The threshold for binarizing the cerebrum probability map. You can set this value between 0 and 1 to adjust cerebrum mask. (optional, default: 0.5)
+* `--gpu_id`: determine which gpu will be used. `0`, `1`, `2`, … (optional, default: `0`)
 
+Note, these parameters are modified since version release 200.
+* `--skull_mask`(removed from version release200): the path of the user provided brain mask. If there is only one modality (either `--t1` or `--t2` is used), this would be the brain mask for that modality. If there are two modalities input (both `--t1` and `--t2` are used), this would be the brain mask for the t1w modality. In this case, if you also want to provide a brain mask for t2 modality, please use additional parameter `--exmod_skull_mask` (see below).
+* `--exmod_skull_mask`(removed from version release200): the path of the user provided brain mask for t2w image when both t1w and t2w images are input.
+* `--cere_mask`(removed from version release200): the path of the user provided cerebrum mask. If there is only one modality, this would be the cerebrum mask for that modality. If there are two modalities input, this would be the cerebrum mask for the t1w modality. Since at the cerebellum removal stage, the t2w image has been aligned with the t1w image. So, the t2w cerebrum mask is no longer needed.
+
+```
+nvidia-docker run --rm -it -v /your_data_folder:/InfantData --user $(id -u):$(id -g) ibeatgroup/ibeat_v2:release100 --t1 <t1_file> --age <t1_image_age> --out_dir <result_dir> --sub_name <subject_id>
+```
 The above command is a typical example to process one subject with both T1w and T2w images. You can also only input a single T1w (or T2w) image if you only have one modality.
 
 ## Batch processing
@@ -126,6 +153,7 @@ Yes. The iBEAT V2.0 Cloud (http://www.ibeat.cloud) is timely updated with our la
 
 # How to Cite?
 Please cite the following papers if you use the results provided by the iBEAT V2.0 pipeline:
+* L. Wang, Z. Wu, L. Chen, Y. Sun, W. Lin, G. Li, "[iBEAT V2. 0: a multisite-applicable, deep learning-based pipeline for infant cerebral cortical surface reconstruction](10.1038/s41596-023-00806-x)," Nature Protocol, vol. 18(5), 2023, pp. 1488-1509. 
 * L. Wang, G. Li, F. Shi, X. Cao, C. Lian, D. Nie, et al., "[Volume-based analysis of 6-month-old infant brain MRI for autism biomarker identification and early diagnosis](https://pubmed.ncbi.nlm.nih.gov/30430147/)," in International Conference on Medical Image Computing and Computer-Assisted Intervention, 2018, pp. 411-419.
 * G. Li, J. Nie, L. Wang, F. Shi, J. H. Gilmore, W. Lin, et al., "[Measuring the dynamic longitudinal cortex development in infants by reconstruction of temporally consistent cortical surfaces](https://pubmed.ncbi.nlm.nih.gov/24374075/)," Neuroimage, vol. 90, pp. 266-279, 2014.
 * G. Li, L. Wang, P.-T. Yap, F. Wang, Z. Wu, Y. Meng, et al., "[Computational neuroanatomy of baby brains: A review](https://pubmed.ncbi.nlm.nih.gov/29574033/)," NeuroImage, vol. 185, pp. 906-925, 2018.
